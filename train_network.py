@@ -9,8 +9,6 @@ import json
 from multiprocessing import Value
 import toml
 
-from tqdm import tqdm
-
 import torch
 from library.device_utils import init_ipex, clean_memory_on_device
 init_ipex()
@@ -40,6 +38,9 @@ from library.custom_train_functions import (
     add_v_prediction_like_loss,
     apply_debiased_estimation,
 )
+
+from ui import UIWrapperFactory, UIWrapperFactoryTQDM
+
 from library.utils import setup_logging, add_logging_arguments
 
 setup_logging()
@@ -136,7 +137,7 @@ class NetworkTrainer:
     def sample_images(self, accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet):
         train_util.sample_images(accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet)
 
-    def train(self, args):
+    def train(self, args, ui_wrapper_factory: UIWrapperFactory = UIWrapperFactoryTQDM()):
         session_id = random.randint(0, 2**32)
         training_started_at = time.time()
         train_util.verify_training_args(args)
@@ -686,7 +687,7 @@ class NetworkTrainer:
             if key in metadata:
                 minimum_metadata[key] = metadata[key]
 
-        progress_bar = tqdm(
+        progress_bar = ui_wrapper_factory.create(
             iterable=range(args.max_train_steps),
             smoothing=0,
             disable=not accelerator.is_local_main_process,
